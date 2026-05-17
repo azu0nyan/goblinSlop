@@ -1,77 +1,46 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+use anyhow::{Context, Result};
 use tower_http::services::ServeDir;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 
-mod config;
-mod db;
-mod json_content_loader;
-mod routes;
-
-/// Scan `static/images/` at startup and return a sorted Vec of non-default .jpg filenames.
-fn scan_image_pool() -> Vec<String> {
-    let mut images: Vec<String> = std::fs::read_dir("static/images")
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().to_string())
-        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
-        .collect();
-    images.sort();
-    images
-}
+use goblin_slop::config::Config;
+use goblin_slop::http::{AppState, create_router};
+use goblin_slop::infra::{content_loader, db, image_pool};
 
 #[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt::init();
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .init();
 
-    // Load configuration from environment variables
-    let cfg = config::Config::from_env();
+    let cfg = Config::from_env();
+    info!(?cfg, "🧌 GoblinSlop starting");
 
-    println!("🧌 GoblinSlop starting with config: {:?}", cfg);
+    // In-memory DB rebuilt from JSON on every boot.
+    let conn = db::init_db(":memory:").context("initializing in-memory database")?;
+    content_loader::load_all_content_into_conn(&conn, &cfg.content_dir)
+        .context("loading content into database")?;
 
-    // Initialize in-memory database, filled from scratch at every run
-    let conn = db::init_db(":memory:").expect("Failed to initialize in-memory database");
-    let db = Arc::new(std::sync::Mutex::new(conn));
+    let image_pool = Arc::new(image_pool::scan(format!("{}/images", cfg.static_dir)));
+    info!(count = image_pool.len(), "image pool scanned");
 
-    // Load all unified JSON content into database (single source of truth)
-    println!("Loading content from unified JSON files...");
-    {
-        let conn = db.lock().unwrap();
-        if let Err(e) = json_content_loader::load_all_content_into_conn(&conn, &cfg.content_dir) {
-            eprintln!("Warning: Could not load all content: {}", e);
-        }
-    }
-
-    // Scan image pool ONCE at startup — stored in AppState as Arc for zero-copy clone to handlers
-    let image_pool = Arc::new(scan_image_pool());
-    println!("📸 Image pool loaded: {} images", image_pool.len());
-
-    // Build application state
-    let state = routes::AppState { 
-        db, 
-        base_url: cfg.base_url.clone(), 
-        use_new_template_engine: cfg.use_new_template_engine,
+    let state = AppState {
+        db: Arc::new(Mutex::new(conn)),
+        base_url: cfg.base_url.clone(),
         image_pool,
     };
 
-    // Build router
-    let app = routes::create_router(state)
-        .nest_service("/static", ServeDir::new(&cfg.static_dir));
+    let app = create_router(state).nest_service("/static", ServeDir::new(&cfg.static_dir));
 
-    // Start server
     let bind_addr = cfg.bind_addr();
     let listener = tokio::net::TcpListener::bind(&bind_addr)
         .await
-        .expect(&format!("Failed to bind to {}", bind_addr));
+        .with_context(|| format!("binding to {bind_addr}"))?;
 
-    println!("🧌 GoblinSlop server running on http://{}", bind_addr);
-    println!("📚 Content loaded. Browse to / for home page.");
-    println!(
-        "⚙️  Config: host={} port={} db={} content_dir={} static={} new_template_engine={}",
-        cfg.host, cfg.port, cfg.db_path, cfg.content_dir, cfg.static_dir, cfg.use_new_template_engine
-    );
+    info!(%bind_addr, "🧌 GoblinSlop server running");
+    axum::serve(listener, app).await.context("server error")?;
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    Ok(())
 }

@@ -2,7 +2,13 @@
 //!
 //! Run: `cargo bench` (or `cargo bench -- template`)
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+#![allow(
+    clippy::unnecessary_sort_by,
+    clippy::too_many_arguments,
+    clippy::type_complexity
+)]
+
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 // ============================================================
 // HTML Template Constant (copied from templates.rs)
@@ -146,9 +152,19 @@ fn render(template: &str, replacements: &[(&str, &str)]) -> String {
 // ============================================================
 
 fn build_head_old(
-    title: &str, description: &str, canonical_path: &str, base_url: &str,
-    robots: &str, schema_type: &str, schema_name: &str, schema_desc: &str,
-    keywords: &str, og_type: &str, og_title: &str, og_desc: &str, og_image: &str,
+    title: &str,
+    description: &str,
+    canonical_path: &str,
+    base_url: &str,
+    robots: &str,
+    schema_type: &str,
+    schema_name: &str,
+    schema_desc: &str,
+    keywords: &str,
+    og_type: &str,
+    og_title: &str,
+    og_desc: &str,
+    og_image: &str,
 ) -> String {
     let canonical = if canonical_path.starts_with("http") {
         canonical_path.to_string()
@@ -179,9 +195,19 @@ fn build_head_old(
 // ============================================================
 
 fn build_head_new(
-    title: &str, description: &str, canonical_path: &str, base_url: &str,
-    robots: &str, schema_type: &str, schema_name: &str, schema_desc: &str,
-    keywords: &str, og_type: &str, og_title: &str, og_desc: &str, og_image: &str,
+    title: &str,
+    description: &str,
+    canonical_path: &str,
+    base_url: &str,
+    robots: &str,
+    schema_type: &str,
+    schema_name: &str,
+    schema_desc: &str,
+    keywords: &str,
+    og_type: &str,
+    og_title: &str,
+    og_desc: &str,
+    og_image: &str,
 ) -> String {
     let canonical = if canonical_path.starts_with("http") {
         canonical_path.to_string()
@@ -215,26 +241,40 @@ fn build_head_new(
 // Benchmark parameters (from real article: "Miku's Eternal Refrain")
 // ============================================================
 
-fn make_params() -> (String, String, String, String, String, String, String, String, String, String, String, String, String) {
+fn make_params() -> (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+) {
     let title = "Miku's Eternal Refrain: How Vocaloid Became the First AI Idol and CLAUDE.md Is Its Descendant";
     let tags_str = "Vocaloid, Hatsune Miku, CLAUDE.md, Claude Code, AI voice synthesis, synthetic culture, music production, Anthropic, RVC, Suno AI, Yamaha, virtual idol, persistent context";
     let og_desc = format!("Goblin content: {}", title);
     let og_image = "https://goblin.geno.su/static/images/altman-miku-goblin-king.jpg".to_string();
 
     (
-        format!("{} - GoblinSlop", title),  // title
-        og_desc.clone(),                     // description
+        format!("{} - GoblinSlop", title),               // title
+        og_desc.clone(),                                 // description
         "/miku-synthetic-analysis-may-2026".to_string(), // canonical_path
-        "https://goblin.geno.su".to_string(),             // base_url
-        "index, follow".to_string(),         // robots
-        "Article".to_string(),               // schema_type
-        title.to_string(),                   // schema_name
-        og_desc,                             // schema_desc
-        tags_str.to_string(),                // keywords
-        "Article".to_string(),               // og_type
-        title.to_string(),                   // og_title
-        tags_str.to_string(),                // og_desc
-        og_image,                            // og_image
+        "https://goblin.geno.su".to_string(),            // base_url
+        "index, follow".to_string(),                     // robots
+        "Article".to_string(),                           // schema_type
+        title.to_string(),                               // schema_name
+        og_desc,                                         // schema_desc
+        tags_str.to_string(),                            // keywords
+        "Article".to_string(),                           // og_type
+        title.to_string(),                               // og_title
+        tags_str.to_string(),                            // og_desc
+        og_image,                                        // og_image
     )
 }
 
@@ -251,9 +291,8 @@ fn bench_template_engine(c: &mut Criterion) {
     group.bench_function("old_chained_replace", |b| {
         b.iter(|| {
             black_box(build_head_old(
-                &params.0, &params.1, &params.2, &params.3, &params.4,
-                &params.5, &params.6, &params.7, &params.8, &params.9,
-                &params.10, &params.11, &params.12,
+                &params.0, &params.1, &params.2, &params.3, &params.4, &params.5, &params.6,
+                &params.7, &params.8, &params.9, &params.10, &params.11, &params.12,
             ))
         })
     });
@@ -262,9 +301,8 @@ fn bench_template_engine(c: &mut Criterion) {
     group.bench_function("new_single_pass", |b| {
         b.iter(|| {
             black_box(build_head_new(
-                &params.0, &params.1, &params.2, &params.3, &params.4,
-                &params.5, &params.6, &params.7, &params.8, &params.9,
-                &params.10, &params.11, &params.12,
+                &params.0, &params.1, &params.2, &params.3, &params.4, &params.5, &params.6,
+                &params.7, &params.8, &params.9, &params.10, &params.11, &params.12,
             ))
         })
     });
