@@ -1,6 +1,7 @@
 use rand::Rng;
 use crate::db::{ContentEntry, DynamicPage};
 use super::references::generate_references_html_thread_rng;
+use super::template_engine::render;
 
 /// Scans static/images/ directory at runtime and returns all jpg filenames (excludes default.jpg)
 pub fn get_image_pool() -> Vec<String> {
@@ -33,7 +34,7 @@ pub fn render_category(category: &str) -> String {
 // HTML Template Constants
 // ============================================================
 
-const BASE_HTML_HEAD: &str = r##"<!DOCTYPE html>
+pub(crate) const BASE_HTML_HEAD: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -119,7 +120,7 @@ const BASE_HTML_FOOT: &str = r##"    </main>
 </html>"##;
 
 /// Escape HTML entities for safe embedding in JSON-LD
-fn json_escape(s: &str) -> String {
+pub(crate) fn json_escape(s: &str) -> String {
     s.replace('\\', r"\\")
         .replace('"', r#"\""#)
         .replace('\n', r"\n")
@@ -153,19 +154,23 @@ fn build_head(
     let esc_name = json_escape(schema_name);
     let esc_desc = json_escape(schema_desc);
 
-   BASE_HTML_HEAD
-        .replace("{TITLE}", title)
-        .replace("{DESCRIPTION}", description)
-        .replace("{ROBOTS}", robots)
-        .replace("{CANONICAL}", &canonical)
-        .replace("{SCHEMA_TYPE}", schema_type)
-        .replace("{SCHEMA_NAME}", &esc_name)
-        .replace("{SCHEMA_DESC}", &esc_desc)
-        .replace("{KEYWORDS}", keywords)
-        .replace("{OG_TYPE}", og_type)
-        .replace("{OG_TITLE}", og_title)
-        .replace("{OG_DESC}", og_desc)
-        .replace("{OG_IMAGE}", og_image)
+    render(
+        BASE_HTML_HEAD,
+        &[
+            ("TITLE", title),
+            ("DESCRIPTION", description),
+            ("ROBOTS", robots),
+            ("CANONICAL", &canonical),
+            ("SCHEMA_TYPE", schema_type),
+            ("SCHEMA_NAME", &esc_name),
+            ("SCHEMA_DESC", &esc_desc),
+            ("KEYWORDS", keywords),
+            ("OG_TYPE", og_type),
+            ("OG_TITLE", og_title),
+            ("OG_DESC", og_desc),
+            ("OG_IMAGE", og_image),
+        ],
+    )
 }
 
 /// Render a standard content page with JSON-LD metadata

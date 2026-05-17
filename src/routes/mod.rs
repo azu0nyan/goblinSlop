@@ -3,6 +3,7 @@ pub mod generator;
 pub mod handlers;
 pub mod pages;
 pub mod references;
+pub mod template_engine;
 pub mod templates;
 
 use axum::{
