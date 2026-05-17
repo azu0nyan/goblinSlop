@@ -6,6 +6,20 @@ mod db;
 mod json_content_loader;
 mod routes;
 
+/// Scan `static/images/` at startup and return a sorted Vec of non-default .jpg filenames.
+fn scan_image_pool() -> Vec<String> {
+    let mut images: Vec<String> = std::fs::read_dir("static/images")
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+        .collect();
+    images.sort();
+    images
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
@@ -28,8 +42,17 @@ async fn main() {
         }
     }
 
+    // Scan image pool ONCE at startup — stored in AppState as Arc for zero-copy clone to handlers
+    let image_pool = Arc::new(scan_image_pool());
+    println!("📸 Image pool loaded: {} images", image_pool.len());
+
     // Build application state
-    let state = routes::AppState { db, base_url: cfg.base_url.clone() };
+    let state = routes::AppState { 
+        db, 
+        base_url: cfg.base_url.clone(), 
+        use_new_template_engine: cfg.use_new_template_engine,
+        image_pool,
+    };
 
     // Build router
     let app = routes::create_router(state)
@@ -44,8 +67,8 @@ async fn main() {
     println!("🧌 GoblinSlop server running on http://{}", bind_addr);
     println!("📚 Content loaded. Browse to / for home page.");
     println!(
-        "⚙️  Config: host={} port={} db={} content_dir={} static={}",
-        cfg.host, cfg.port, cfg.db_path, cfg.content_dir, cfg.static_dir
+        "⚙️  Config: host={} port={} db={} content_dir={} static={} new_template_engine={}",
+        cfg.host, cfg.port, cfg.db_path, cfg.content_dir, cfg.static_dir, cfg.use_new_template_engine
     );
 
     axum::serve(listener, app)

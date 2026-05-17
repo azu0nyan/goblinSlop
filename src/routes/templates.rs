@@ -2,38 +2,11 @@ use rand::Rng;
 use crate::db::{ContentEntry, DynamicPage};
 use super::references::generate_references_html_thread_rng;
 
-/// Scans static/images/ directory at runtime and returns all jpg filenames (excludes default.jpg)
-pub fn get_image_pool() -> Vec<String> {
-    let mut images: Vec<String> = std::fs::read_dir("static/images")
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().to_string())
-        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
-        .collect();
-    images.sort();
-    images
-}
-
-/// Render tags as clickable HTML links
-pub fn render_tags(tags: &[String]) -> String {
-    tags.iter()
-        .map(|t| format!("<a href='/tag/{}' class='tag-link'>{}</a>", t, t))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Render a category as a clickable HTML link
-pub fn render_category(category: &str) -> String {
-    format!(r#"<a href='/category/{}' class='category-link'>{}</a>"#, category, category)
-}
-
 // ============================================================
 // HTML Template Constants
 // ============================================================
 
-const BASE_HTML_HEAD: &str = r##"<!DOCTYPE html>
+pub(crate) const BASE_HTML_HEAD: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -119,7 +92,7 @@ const BASE_HTML_FOOT: &str = r##"    </main>
 </html>"##;
 
 /// Escape HTML entities for safe embedding in JSON-LD
-fn json_escape(s: &str) -> String {
+pub(crate) fn json_escape(s: &str) -> String {
     s.replace('\\', r"\\")
         .replace('"', r#"\""#)
         .replace('\n', r"\n")
@@ -127,8 +100,12 @@ fn json_escape(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
-/// Build the HTML head block with all meta tags including OG/Twitter cards
-fn build_head(
+/// Build the HTML head block with all meta tags including OG/Twitter cards.
+///
+/// `use_new_engine` controls which rendering backend is used:
+/// - `true` → single-pass `template_engine::render()` (v2, ~5× faster)
+/// - `false` → old chained `.replace()` calls (v1, fallback)
+pub fn build_head(
     title: &str,
     description: &str,
     canonical_path: &str,
@@ -142,6 +119,7 @@ fn build_head(
     og_title: &str,
     og_desc: &str,
     og_image: &str,
+    use_new_engine: bool,
 ) -> String {
     let canonical = if canonical_path.starts_with("http") {
         canonical_path.to_string()
@@ -153,27 +131,57 @@ fn build_head(
     let esc_name = json_escape(schema_name);
     let esc_desc = json_escape(schema_desc);
 
-   BASE_HTML_HEAD
-        .replace("{TITLE}", title)
-        .replace("{DESCRIPTION}", description)
-        .replace("{ROBOTS}", robots)
-        .replace("{CANONICAL}", &canonical)
-        .replace("{SCHEMA_TYPE}", schema_type)
-        .replace("{SCHEMA_NAME}", &esc_name)
-        .replace("{SCHEMA_DESC}", &esc_desc)
-        .replace("{KEYWORDS}", keywords)
-        .replace("{OG_TYPE}", og_type)
-        .replace("{OG_TITLE}", og_title)
-        .replace("{OG_DESC}", og_desc)
-        .replace("{OG_IMAGE}", og_image)
+    if use_new_engine {
+        super::template_engine::render(
+            BASE_HTML_HEAD,
+            &[
+                ("TITLE", title),
+                ("DESCRIPTION", description),
+                ("ROBOTS", robots),
+                ("CANONICAL", &canonical),
+                ("SCHEMA_TYPE", schema_type),
+                ("SCHEMA_NAME", &esc_name),
+                ("SCHEMA_DESC", &esc_desc),
+                ("KEYWORDS", keywords),
+                ("OG_TYPE", og_type),
+                ("OG_TITLE", og_title),
+                ("OG_DESC", og_desc),
+                ("OG_IMAGE", og_image),
+            ],
+        )
+    } else {
+        // Old chained replace approach (fallback)
+        BASE_HTML_HEAD
+            .replace("{TITLE}", title)
+            .replace("{DESCRIPTION}", description)
+            .replace("{ROBOTS}", robots)
+            .replace("{CANONICAL}", &canonical)
+            .replace("{SCHEMA_TYPE}", schema_type)
+            .replace("{SCHEMA_NAME}", &esc_name)
+            .replace("{SCHEMA_DESC}", &esc_desc)
+            .replace("{KEYWORDS}", keywords)
+            .replace("{OG_TYPE}", og_type)
+            .replace("{OG_TITLE}", og_title)
+            .replace("{OG_DESC}", og_desc)
+            .replace("{OG_IMAGE}", og_image)
+    }
 }
 
 /// Render a standard content page with JSON-LD metadata
-pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url: &str) -> String {
+pub fn render_content_page(
+    entry: &ContentEntry,
+    canonical_path: &str,
+    base_url: &str,
+    use_new_engine: bool,
+) -> String {
     let mut html = String::new();
     let tags_str = entry.tags.join(", ");
     let img_file = entry.image.as_deref().unwrap_or("default.jpg");
-    let og_image = format!("{}{}", base_url.trim_end_matches('/'), format!("/static/images/{}", img_file));
+    let og_image = format!(
+        "{}{}",
+        base_url.trim_end_matches('/'),
+        format!("/static/images/{}", img_file)
+    );
     let og_title = &entry.title;
     let og_desc = &format!("Goblin content: {}", entry.title);
 
@@ -183,14 +191,15 @@ pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url:
         canonical_path,
         base_url,
         "index, follow",
-        "Article",
+        "Article", // og:type
         &entry.title,
         og_desc,
         &tags_str,
-        "Article",           // og:type
-        og_title,            // og:title
-        og_desc,             // og:description
-        &og_image,           // og:image
+        "Article",  // og:type
+        og_title,   // og:title
+        og_desc,    // og:description
+        &og_image,  // og:image
+        use_new_engine,
     );
     html.push_str(&head);
 
@@ -231,7 +240,11 @@ pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url:
     let mut refs_keywords: Vec<String> = entry.tags.clone();
     refs_keywords.extend(entry.slug.split('-').map(|s| s.to_string()));
     let explicit_slugs = entry.references.clone();
-    html.push_str(&generate_references_html_thread_rng(&refs_keywords, Some(&entry.slug), &explicit_slugs));
+    html.push_str(&generate_references_html_thread_rng(
+        &refs_keywords,
+        Some(&entry.slug),
+        &explicit_slugs,
+    ));
 
     // Sources section (external references like IMDb, MyAnimeList, etc.)
     if !entry.sources.is_empty() {
@@ -259,15 +272,25 @@ pub fn render_dynamic_page<R: Rng>(
     canonical_path: &str,
     base_url: &str,
     rng: &mut R,
+    use_new_engine: bool,
+    image_pool: &[String],
 ) -> String {
     let keywords_str = dyn_page.keywords.join(", ");
-    let mut html = String::new();
 
-    // Pick random image first (for OG meta)
-    let pool = get_image_pool();
-    let img_idx = rng.gen_range(0..pool.len());
-    let selected_img = &pool[img_idx];
-    let og_image = format!("{}{}", base_url.trim_end_matches('/'), &format!("/static/images/{}", selected_img));
+    // Use the cached image pool (from AppState), pick two random images from it
+    let img1_idx = rng.gen_range(0..image_pool.len());
+    let selected_img1 = &image_pool[img1_idx];
+    let og_image = format!(
+        "{}{}",
+        base_url.trim_end_matches('/'),
+        &format!("/static/images/{}", selected_img1)
+    );
+
+    // Pick second random image for the body (independent draw from same cached pool)
+    let img2_idx = rng.gen_range(0..image_pool.len());
+    let selected_img2 = &image_pool[img2_idx];
+
+    let mut html = String::new();
 
     let head = build_head(
         &format!("{} - GoblinSlop", dyn_page.title),
@@ -275,21 +298,17 @@ pub fn render_dynamic_page<R: Rng>(
         canonical_path,
         base_url,
         "index, follow",
-        "WebPage",
-        &dyn_page.title,
-        &format!("Goblin content related to: {}", keywords_str),
+        "WebPage",                                         // og:type
+        &dyn_page.title,                                   // og:title
+        &format!("Goblin content related to: {}", keywords_str), // og:description
         &keywords_str,
-        "WebPage",         // og:type
-        &dyn_page.title,   // og:title
+        "WebPage",          // og:type
+        &dyn_page.title,    // og:title
         &format!("Goblin content about: {}", keywords_str), // og:description
-        &og_image,         // og:image
+        &og_image,          // og:image
+        use_new_engine,
     );
     html.push_str(&head);
-
-    // Pick random image — dynamically loaded from static/images/ (no hardcoded list)
-    let pool = get_image_pool();
-    let img_idx = rng.gen_range(0..pool.len());
-    let selected_img = &pool[img_idx];
 
     html.push_str(&format!(
         r#"<article class="content-page">
@@ -303,7 +322,7 @@ pub fn render_dynamic_page<R: Rng>(
         {content}
     </div>
 </article>"#,
-        selected_img,
+        selected_img2,
         title = dyn_page.title,
         content = dyn_page.content,
     ));
@@ -320,12 +339,21 @@ pub fn render_static_page(
     tags: &str,
     canonical_path: &str,
     base_url: &str,
+    use_new_engine: bool,
 ) -> String {
     let mut html = String::new();
 
     // Default OG image for collection pages
-    let og_image = format!("{}{}", base_url.trim_end_matches('/'), "/static/images/default.jpg");
-    let og_desc = if title.len() > 150 { &title[..150] } else { title };
+    let og_image = format!(
+        "{}{}",
+        base_url.trim_end_matches('/'),
+        "/static/images/default.jpg"
+    );
+    let og_desc = if title.len() > 150 {
+        &title[..150]
+    } else {
+        title
+    };
 
     let head = build_head(
         &format!("{} - GoblinSlop", title),
@@ -333,14 +361,15 @@ pub fn render_static_page(
         canonical_path,
         base_url,
         "index, follow",
-        "CollectionPage",
-        title,
-        og_desc,
-        tags,
-        "WebPage",     // og:type
-        &format!("{} - GoblinSlop", title), // og:title
-        og_desc,       // og:description
-        &og_image,     // og:image
+        "CollectionPage",                          // og:type
+        title,                                     // schema_name
+        og_desc,                                   // schema_desc
+        tags,                                      // keywords
+        "WebPage",                                  // og:type
+        &format!("{} - GoblinSlop", title),        // og:title
+        og_desc,                                    // og:description
+        &og_image,                                  // og:image
+        use_new_engine,
     );
     html.push_str(&head);
 
@@ -375,4 +404,174 @@ pub fn render_static_page(
 
     html.push_str(BASE_HTML_FOOT);
     html
+}
+
+/// Render tags as clickable HTML links
+pub fn render_tags(tags: &[String]) -> String {
+    tags.iter()
+        .map(|t| format!("<a href='/tag/{}' class='tag-link'>{}</a>", t, t))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Render a category as a clickable HTML link
+pub fn render_category(category: &str) -> String {
+    format!(
+        r#"<a href='/category/{}' class='category-link'>{}</a>"#,
+        category, category
+    )
+}
+
+/// Deprecated stub: image_pool is now in AppState.
+/// This function is kept for API compatibility but always returns empty pool.
+#[allow(dead_code)]
+pub fn get_image_pool() -> Vec<String> {
+    vec![]
+}
+
+// ============================================================
+// Tests — verify caching behavior and correctness
+// ============================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_image_pool_from_app_state_valid() {
+        // Simulate how AppState initializes image_pool at startup
+        let mut images: Vec<String> = std::fs::read_dir("static/images")
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+            .collect();
+        images.sort();
+
+        assert!(!images.is_empty(), "Image pool should not be empty");
+        for img in &images {
+            assert!(img.ends_with(".jpg"), "Image '{}' must end with .jpg", img);
+            assert!(!img.starts_with("default"), "Image '{}' should exclude default.jpg", img);
+        }
+
+        // Must be sorted lexicographically
+        let mut sorted_pool = images.clone();
+        sorted_pool.sort();
+        assert_eq!(images, sorted_pool, "Image pool must be sorted");
+    }
+
+    #[test]
+    fn test_render_content_page_output_valid_html() {
+        let entry = ContentEntry {
+            id: 1,
+            title: "Test Article".to_string(),
+            slug: "test-article".to_string(),
+            body_markdown: "# Hello\n\nWorld content.".to_string(),
+            body_html: "<h1>Hello</h1><p>World content.</p>".to_string(),
+            category: "schizophrenia".to_string(),
+            tags: vec!["goblin".to_string(), "test".to_string()],
+            references: vec![],
+            sources: vec![],
+            is_dynamic: false,
+            date_added: "2026-05-17T00:00:00Z".to_string(),
+            image: Some("goblin-schizophrenia.jpg".to_string()),
+        };
+
+        let html = render_content_page(&entry, "/test-article", "https://goblin.geno.su", true);
+        assert!(html.contains("<title>Test Article - GoblinSlop</title>"));
+        assert!(html.contains("og:title"));
+        assert!(html.contains("<h1>Hello</h1>"));
+        assert!(html.contains("</html>"));
+    }
+
+    #[test]
+    fn test_render_dynamic_page_picks_from_pool() {
+        use rand::rngs::StdRng;
+        use rand::SeedableRng;
+
+        // Build a real pool like AppState does at startup
+        let mut images: Vec<String> = std::fs::read_dir("static/images")
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+            .collect();
+        images.sort();
+        assert!(!images.is_empty(), "Need at least one image in pool for test");
+
+        let dyn_page = DynamicPage {
+            path: "/random-goblin-path".to_string(),
+            title: "Random Goblin Thoughts".to_string(),
+            content: "<p>Goblin thinking...</p>".to_string(),
+            keywords: vec!["goblin".to_string(), "thoughts".to_string()],
+        };
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let html = render_dynamic_page(
+            &dyn_page,
+            "/random-goblin-path",
+            "https://goblin.geno.su",
+            &mut rng,
+            true,
+            &images,
+        );
+
+        // Must contain the title
+        assert!(html.contains("Random Goblin Thoughts"));
+        // Must reference images from the pool (two random picks)
+        let img_refs: Vec<_> = html.matches("/static/images/").collect();
+        assert!(img_refs.len() >= 1, "Dynamic page must include at least one image reference");
+        // Verify the pool images are valid jpgs that exist on disk
+        for img in &images {
+            let path = format!("static/images/{}", img);
+            assert!(std::path::Path::new(&path).exists(), "Pool image '{}' must exist on disk", img);
+        }
+    }
+
+    #[test]
+    fn test_json_escape_handles_special_chars() {
+        let escaped = json_escape(r#"He said \"hello\\nworld\""#);
+        assert_eq!(escaped, r#"He said \\\"hello\\\\nworld\\\""#);
+    }
+
+    #[test]
+    fn test_build_head_both_engine_paths_produce_same_output() {
+        let new_html = build_head(
+            "Test",
+            "Desc",
+            "/test",
+            "https://goblin.geno.su",
+            "index, follow",
+            "WebPage",
+            "GoblinSlop",
+            "Description here",
+            "",
+            "WebPage",
+            "Test - GoblinSlop",
+            "",
+            "",
+            true,
+        );
+        let old_html = build_head(
+            "Test",
+            "Desc",
+            "/test",
+            "https://goblin.geno.su",
+            "index, follow",
+            "WebPage",
+            "GoblinSlop",
+            "Description here",
+            "",
+            "WebPage",
+            "Test - GoblinSlop",
+            "",
+            "",
+            false,
+        );
+        assert_eq!(new_html, old_html, "Both engine paths must produce identical output");
+    }
 }

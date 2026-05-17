@@ -43,7 +43,7 @@ pub async fn dynamic_fallback(
     // Check static content
     let entry = db::get_content_by_slug(&db, &slug).unwrap_or(None);
     if let Some(entry) = entry {
-        return Ok(Html(render_content_page(&entry, &format!("/{}", slug), &state.base_url)).into_response());
+        return Ok(Html(render_content_page(&entry, &format!("/{}", slug), &state.base_url, state.use_new_template_engine)).into_response());
     }
 
     // Generate new (deterministic from path — no DB caching needed)
@@ -56,7 +56,7 @@ pub async fn dynamic_fallback(
 
     let dyn_page = generate_dynamic_page_content(&slug, &final_keywords);
     
-    // Pick random image from pool for dynamic/generate pages
+    // Pick random image from pool (from AppState — scanned once at startup)
     let mut rng = thread_rng();
-    Ok(Html(render_dynamic_page(&dyn_page, &format!("/{}", slug), &state.base_url, &mut rng)).into_response())
+    Ok(Html(render_dynamic_page(&dyn_page, &format!("/{}", slug), &state.base_url, &mut rng, state.use_new_template_engine, &state.image_pool)).into_response())
 }

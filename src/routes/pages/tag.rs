@@ -102,5 +102,6 @@ pub async fn tag_page(
         &tag,
         &format!("/tag/{}", tag),
         &state.base_url,
+        state.use_new_template_engine,
     )))
 }

@@ -3,6 +3,7 @@ pub mod generator;
 pub mod handlers;
 pub mod pages;
 pub mod references;
+pub mod template_engine;
 pub mod templates;
 
 use axum::{
@@ -29,6 +30,10 @@ use pages::{
 pub struct AppState {
     pub db: Arc<std::sync::Mutex<rusqlite::Connection>>,
     pub base_url: String,
+    pub use_new_template_engine: bool,
+    /// Cached image pool — scanned once at startup from `static/images/`, then cloned via `Arc` to all handlers.
+    /// No per-request filesystem reads.
+    pub image_pool: Arc<Vec<String>>,
 }
 
 pub fn create_router(state: AppState) -> Router {

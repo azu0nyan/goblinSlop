@@ -81,5 +81,6 @@ pub async fn search_page(
         "search",
         "/search",
         &state.base_url,
+        state.use_new_template_engine,
     )))
 }
