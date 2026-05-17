@@ -154,5 +154,6 @@ pub async fn home_page(
         "goblins,home,welcome",
         "/",
         &state.base_url,
+        state.use_new_template_engine,
     )))
 }

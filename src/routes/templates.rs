@@ -1,34 +1,6 @@
 use rand::Rng;
 use crate::db::{ContentEntry, DynamicPage};
 use super::references::generate_references_html_thread_rng;
-use super::template_engine::render;
-
-/// Scans static/images/ directory at runtime and returns all jpg filenames (excludes default.jpg)
-pub fn get_image_pool() -> Vec<String> {
-    let mut images: Vec<String> = std::fs::read_dir("static/images")
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().to_string())
-        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
-        .collect();
-    images.sort();
-    images
-}
-
-/// Render tags as clickable HTML links
-pub fn render_tags(tags: &[String]) -> String {
-    tags.iter()
-        .map(|t| format!("<a href='/tag/{}' class='tag-link'>{}</a>", t, t))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Render a category as a clickable HTML link
-pub fn render_category(category: &str) -> String {
-    format!(r#"<a href='/category/{}' class='category-link'>{}</a>"#, category, category)
-}
 
 // ============================================================
 // HTML Template Constants
@@ -128,8 +100,12 @@ pub(crate) fn json_escape(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
-/// Build the HTML head block with all meta tags including OG/Twitter cards
-fn build_head(
+/// Build the HTML head block with all meta tags including OG/Twitter cards.
+///
+/// `use_new_engine` controls which rendering backend is used:
+/// - `true` → single-pass `template_engine::render()` (v2, ~5× faster)
+/// - `false` → old chained `.replace()` calls (v1, fallback)
+pub fn build_head(
     title: &str,
     description: &str,
     canonical_path: &str,
@@ -143,6 +119,7 @@ fn build_head(
     og_title: &str,
     og_desc: &str,
     og_image: &str,
+    use_new_engine: bool,
 ) -> String {
     let canonical = if canonical_path.starts_with("http") {
         canonical_path.to_string()
@@ -154,27 +131,44 @@ fn build_head(
     let esc_name = json_escape(schema_name);
     let esc_desc = json_escape(schema_desc);
 
-    render(
-        BASE_HTML_HEAD,
-        &[
-            ("TITLE", title),
-            ("DESCRIPTION", description),
-            ("ROBOTS", robots),
-            ("CANONICAL", &canonical),
-            ("SCHEMA_TYPE", schema_type),
-            ("SCHEMA_NAME", &esc_name),
-            ("SCHEMA_DESC", &esc_desc),
-            ("KEYWORDS", keywords),
-            ("OG_TYPE", og_type),
-            ("OG_TITLE", og_title),
-            ("OG_DESC", og_desc),
-            ("OG_IMAGE", og_image),
-        ],
-    )
+    if use_new_engine {
+        super::template_engine::render(
+            BASE_HTML_HEAD,
+            &[
+                ("TITLE", title),
+                ("DESCRIPTION", description),
+                ("ROBOTS", robots),
+                ("CANONICAL", &canonical),
+                ("SCHEMA_TYPE", schema_type),
+                ("SCHEMA_NAME", &esc_name),
+                ("SCHEMA_DESC", &esc_desc),
+                ("KEYWORDS", keywords),
+                ("OG_TYPE", og_type),
+                ("OG_TITLE", og_title),
+                ("OG_DESC", og_desc),
+                ("OG_IMAGE", og_image),
+            ],
+        )
+    } else {
+        // Old chained replace approach (fallback)
+        BASE_HTML_HEAD
+            .replace("{TITLE}", title)
+            .replace("{DESCRIPTION}", description)
+            .replace("{ROBOTS}", robots)
+            .replace("{CANONICAL}", &canonical)
+            .replace("{SCHEMA_TYPE}", schema_type)
+            .replace("{SCHEMA_NAME}", &esc_name)
+            .replace("{SCHEMA_DESC}", &esc_desc)
+            .replace("{KEYWORDS}", keywords)
+            .replace("{OG_TYPE}", og_type)
+            .replace("{OG_TITLE}", og_title)
+            .replace("{OG_DESC}", og_desc)
+            .replace("{OG_IMAGE}", og_image)
+    }
 }
 
 /// Render a standard content page with JSON-LD metadata
-pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url: &str) -> String {
+pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url: &str, use_new_engine: bool) -> String {
     let mut html = String::new();
     let tags_str = entry.tags.join(", ");
     let img_file = entry.image.as_deref().unwrap_or("default.jpg");
@@ -196,6 +190,7 @@ pub fn render_content_page(entry: &ContentEntry, canonical_path: &str, base_url:
         og_title,            // og:title
         og_desc,             // og:description
         &og_image,           // og:image
+        use_new_engine,
     );
     html.push_str(&head);
 
@@ -264,6 +259,7 @@ pub fn render_dynamic_page<R: Rng>(
     canonical_path: &str,
     base_url: &str,
     rng: &mut R,
+    use_new_engine: bool,
 ) -> String {
     let keywords_str = dyn_page.keywords.join(", ");
     let mut html = String::new();
@@ -288,6 +284,7 @@ pub fn render_dynamic_page<R: Rng>(
         &dyn_page.title,   // og:title
         &format!("Goblin content about: {}", keywords_str), // og:description
         &og_image,         // og:image
+        use_new_engine,
     );
     html.push_str(&head);
 
@@ -325,6 +322,7 @@ pub fn render_static_page(
     tags: &str,
     canonical_path: &str,
     base_url: &str,
+    use_new_engine: bool,
 ) -> String {
     let mut html = String::new();
 
@@ -346,6 +344,7 @@ pub fn render_static_page(
         &format!("{} - GoblinSlop", title), // og:title
         og_desc,       // og:description
         &og_image,     // og:image
+        use_new_engine,
     );
     html.push_str(&head);
 
@@ -380,4 +379,31 @@ pub fn render_static_page(
 
     html.push_str(BASE_HTML_FOOT);
     html
+}
+
+/// Render tags as clickable HTML links
+pub fn render_tags(tags: &[String]) -> String {
+    tags.iter()
+        .map(|t| format!("<a href='/tag/{}' class='tag-link'>{}</a>", t, t))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Render a category as a clickable HTML link
+pub fn render_category(category: &str) -> String {
+    format!(r#"<a href='/category/{}' class='category-link'>{}</a>"#, category, category)
+}
+
+/// Scans static/images/ directory at runtime and returns all jpg filenames (excludes default.jpg)
+pub fn get_image_pool() -> Vec<String> {
+    let mut images: Vec<String> = std::fs::read_dir("static/images")
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+        .collect();
+    images.sort();
+    images
 }

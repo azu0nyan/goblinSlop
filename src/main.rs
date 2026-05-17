@@ -32,7 +32,7 @@ async fn main() {
     }
 
     // Build application state
-    let state = routes::AppState { db, base_url: cfg.base_url.clone() };
+    let state = routes::AppState { db, base_url: cfg.base_url.clone(), use_new_template_engine: cfg.use_new_template_engine };
 
     // Build router
     let app = routes::create_router(state)
@@ -47,8 +47,8 @@ async fn main() {
     println!("🧌 GoblinSlop server running on http://{}", bind_addr);
     println!("📚 Content loaded. Browse to / for home page.");
     println!(
-        "⚙️  Config: host={} port={} db={} content_dir={} static={}",
-        cfg.host, cfg.port, cfg.db_path, cfg.content_dir, cfg.static_dir
+        "⚙️  Config: host={} port={} db={} content_dir={} static={} new_template_engine={}",
+        cfg.host, cfg.port, cfg.db_path, cfg.content_dir, cfg.static_dir, cfg.use_new_template_engine
     );
 
     axum::serve(listener, app)

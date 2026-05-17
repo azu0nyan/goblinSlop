@@ -30,6 +30,7 @@ use pages::{
 pub struct AppState {
     pub db: Arc<std::sync::Mutex<rusqlite::Connection>>,
     pub base_url: String,
+    pub use_new_template_engine: bool,
 }
 
 pub fn create_router(state: AppState) -> Router {

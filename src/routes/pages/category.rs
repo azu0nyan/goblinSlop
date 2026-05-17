@@ -102,5 +102,6 @@ pub async fn category_page(
         &category,
         &format!("/category/{}", category),
         &state.base_url,
+        state.use_new_template_engine,
     )))
 }
