@@ -1,18 +1,13 @@
 use axum::extract::State;
 use axum::http::header;
 
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::infra::db;
+use crate::api::AppState;
+use crate::error::AppResult;
 
 pub async fn sitemap(
     State(state): State<AppState>,
 ) -> AppResult<([(header::HeaderName, &'static str); 1], String)> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal(anyhow::anyhow!("db mutex poisoned")))?;
-    let entries = db::get_all_content(&conn)?;
+    let entries = state.content.all()?;
     let base_url = state.base_url.trim_end_matches('/').to_string();
 
     let mut urls = String::new();

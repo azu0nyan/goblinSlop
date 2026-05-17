@@ -1,20 +1,15 @@
 use axum::extract::{Path, State};
 use axum::response::Html;
 
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::http::view::{render_card_grid, render_static_page};
-use crate::infra::db;
+use crate::api::AppState;
+use crate::api::view::{render_card_grid, render_static_page};
+use crate::error::AppResult;
 
 pub async fn tag_page(
     State(state): State<AppState>,
     Path(tag): Path<String>,
 ) -> AppResult<Html<String>> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal(anyhow::anyhow!("db mutex poisoned")))?;
-    let entries = db::get_content_by_tag(&conn, &tag)?;
+    let entries = state.content.by_tag(&tag)?;
     let count = entries.len();
 
     let mut body = format!("<h2>Articles tagged: <span class='tag-link'>{tag}</span></h2>");

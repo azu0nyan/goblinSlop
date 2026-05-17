@@ -1,19 +1,12 @@
 pub mod handlers;
 pub mod response;
+pub mod state;
 pub mod view;
+
+pub use state::AppState;
 
 use axum::Router;
 use axum::routing::get;
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
-
-#[derive(Clone)]
-pub struct AppState {
-    pub db: Arc<Mutex<Connection>>,
-    pub base_url: String,
-    /// Cached image pool, scanned once at startup.
-    pub image_pool: Arc<Vec<String>>,
-}
 
 pub fn create_router(state: AppState) -> Router {
     use handlers::*;

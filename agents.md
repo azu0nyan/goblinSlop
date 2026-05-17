@@ -9,53 +9,62 @@
 - **Storage**: SQLite via rusqlite 0.32 (in-memory, rebuilt from JSON on every boot)
 - **Templating**: hand-rolled single-pass placeholder engine (no Tera / Askama)
 
+The structure follows the [bulletproof-rust-web] guide: three layers, ports +
+services for repository access, dependencies pointing inward.
+
+[bulletproof-rust-web]: https://gruberb.github.io/bulletproof-rust-web/
+
 ---
 
 ## Architecture
 
-The project follows a three-layer split adapted from the bulletproof-rust-web
-guide. **Dependencies point inward**: HTTP and infra both depend on domain;
-domain depends on nothing in the project.
-
 ```
 src/
-├── main.rs                  thin entry: tracing, config, init, serve
-├── lib.rs                   re-exports for integration tests
-├── config.rs                env-var Config
-├── error.rs                 AppError + AppResult + IntoResponse
+├── main.rs                          thin entry: tracing, validated config, wire state, serve
+├── lib.rs                           re-exports
+├── config.rs                        env-var Config + validate()
+├── error.rs                         AppError + AppResult + IntoResponse
 │
-├── domain/                  PURE. no axum, no rusqlite, no fs.
-│   ├── content.rs           ContentEntry, DynamicPage, SourceRef
-│   ├── generator.rs         deterministic dynamic page generator
-│   ├── references.rs        cross-reference link generator
-│   └── templates_data.rs    title / intro / body / verdict constants
+├── domain/                          PURE. no axum, no rusqlite, no fs.
+│   ├── content.rs                   ContentEntry, DynamicPage, SourceRef
+│   ├── generator.rs                 deterministic dynamic page generator
+│   ├── references.rs                cross-reference link generator
+│   ├── templates_data.rs            title / intro / body / verdict constants
+│   ├── ports/
+│   │   └── content_repository.rs    ContentRepository trait (Send + Sync, sync methods)
+│   └── services/
+│       └── content_service.rs       ContentService<R> + resolve_path (find-or-generate)
 │
-├── infra/                   I/O: rusqlite, fs, markdown
-│   ├── db.rs                schema + queries + inserts (one file)
-│   ├── content_loader.rs    JSON → markdown → ContentEntry → db
-│   └── image_pool.rs        scan `static/images/` once at startup
+├── infra/                           I/O: rusqlite, fs, markdown
+│   ├── db.rs                        schema + queries (kept as raw functions)
+│   ├── content_loader.rs            JSON → markdown → ContentEntry → db
+│   ├── image_pool.rs                scan `static/images/` once at startup
+│   └── repositories/
+│       └── sqlite_content_repo.rs   SqliteContentRepo impl ContentRepository (wraps Arc<Mutex<Connection>>)
 │
-└── http/                    axum-facing
-    ├── mod.rs               AppState + create_router
-    ├── response.rs          ApiResponse<T>
-    ├── view/                HTML rendering
-    │   ├── template_engine.rs   single-pass {KEY} substitution
-    │   ├── layout.rs            BASE_HTML_HEAD/FOOT + build_head
-    │   ├── components.rs        tags, category, card grid, preview
-    │   └── pages.rs             render_content_page / _dynamic / _static
-    └── handlers/            one file per route, ~30 lines each
+└── api/                             axum-facing
+    ├── mod.rs                       create_router
+    ├── state.rs                     AppState (holds ContentService<SqliteContentRepo>)
+    ├── response.rs                  ApiResponse<T>
+    ├── view/                        HTML rendering
+    │   ├── template_engine.rs       single-pass {KEY} substitution
+    │   ├── layout.rs                BASE_HTML_HEAD/FOOT + build_head
+    │   ├── components.rs            tags, category, card grid, preview
+    │   └── pages.rs                 render_content_page / _dynamic / _static
+    └── handlers/                    one file per route, ~20 lines each, all return AppResult
 ```
 
 ### Layer rules
 
-| Layer    | May depend on                                       | Must NOT import           |
-|----------|-----------------------------------------------------|---------------------------|
-| `domain` | `std`, `serde`, `rand`, `anyhow`, `thiserror`       | axum, rusqlite, tokio, fs |
-| `infra`  | `domain`, rusqlite, fs, markdown, tracing           | axum                      |
-| `http`   | `domain`, `infra`, axum, tower                      | —                         |
+| Layer    | May depend on                                             | Must NOT import           |
+|----------|-----------------------------------------------------------|---------------------------|
+| `domain` | `std`, `serde`, `rand`, `anyhow`, `thiserror`             | axum, rusqlite, tokio, fs |
+| `infra`  | `domain`, rusqlite, fs, markdown, tracing                 | axum                      |
+| `api`    | `domain`, `infra`, axum, tower                            | —                         |
 
-A `domain` change that pulls in axum or rusqlite is a code smell — extract the
-HTTP/DB concern into the calling layer instead.
+Dependencies point inward. Handlers depend on `ContentService<R>`, not on
+`SqliteContentRepo` or `infra::db`. The concrete repo is wired in `main.rs`
+(the composition root) and held inside the service.
 
 ---
 
@@ -68,78 +77,95 @@ HTTP/DB concern into the calling layer instead.
 3. `dynamic_fallback`:
    - Empty slug → 308 to `/`.
    - Slug with `_` → 308 to the hyphen form (canonicalization).
-   - Slug in DB → render `render_content_page`.
-   - Otherwise → derive keywords from path, generate via seeded RNG, render
-     `render_dynamic_page`.
+   - Otherwise → `state.content.resolve_path(slug)` returns either
+     `PageContent::Static(entry)` (render content page) or
+     `PageContent::Dynamic(page)` (render generated page).
 4. **No dynamic-page caching.** Generation is deterministic from the path; the
-   same URL always produces identical HTML, so no cache lookup or write is
-   needed.
+   same URL always produces identical HTML.
 
 ---
 
 ## Conventions
 
-### Handlers (`src/http/handlers/`)
+### Handlers (`src/api/handlers/`)
 
-- 5–40 lines each. Extract → call service / db / generator → format response.
+- 5–40 lines each. Extract → call **service** → format response.
 - Always return `AppResult<T>`. Never `unwrap()` / `expect()` in request paths.
-- Lock the rusqlite `Mutex` once at the top, map poison to `AppError::Internal`.
-- Drop the lock (`drop(conn);`) before doing CPU-heavy template work that
-  doesn't need the database.
+- Handlers never see rusqlite or `infra::db` directly. The path is
+  `handler → ContentService → ContentRepository → infra::db`.
 
 ### Errors (`src/error.rs`)
 
 - `AppError::NotFound(String)` → 404.
-- `AppError::Database(rusqlite::Error)` → 500 + log.
-- `AppError::Internal(anyhow::Error)` → 500 + log.
-- `IntoResponse` is implemented on `AppError`, so handlers can `?` freely.
+- `AppError::Internal(#[from] anyhow::Error)` → 500 + log.
+- `IntoResponse` is implemented on `AppError`, so handlers `?` freely.
+- Per-rusqlite errors are wrapped at the repository boundary
+  (`SqliteContentRepo` adds `anyhow::Context`), so the domain never depends on
+  `rusqlite::Error`.
 
 ### Logging
 
 - `tracing` only. No `println!` / `eprintln!` in library code.
-- Use structured fields: `info!(slug = %entry.slug, "loaded")`.
+- Structured fields: `info!(slug = %entry.slug, "loaded")`.
 - Default filter is `info`. Override with `RUST_LOG=debug`.
 
 ### Database
 
-- Single in-memory SQLite connection behind `Arc<Mutex<Connection>>`. Adequate
-  for a low-traffic content site. If traffic grows, swap to `r2d2` pool — the
-  `infra::db` API does not need to change.
+- One in-memory SQLite connection behind `Arc<Mutex<Connection>>`, owned by
+  `SqliteContentRepo`. The mutex is held only for the duration of a single
+  query — never across `await` points.
 - Schema lives in `infra::db::init_db`. No migrations: the DB is wiped and
   rebuilt from `data/content/*.json` on every boot.
 - Use parameterized queries. Never interpolate into SQL.
 
+### Domain port + service
+
+- `ContentRepository` (in `domain::ports`) defines every read the service uses.
+  Methods are synchronous because the only impl wraps sync rusqlite.
+- `ContentService<R: ContentRepository>` (in `domain::services`) is generic
+  over the port. Tests can swap in a fake repo with no I/O.
+- The service is the only place that knows the "find static, else generate
+  dynamic" rule. Handlers and the `/api/dynamic/*` route both go through it.
+
 ### Templating
 
-- One engine: `http::view::template_engine::render`. Single-pass byte scan,
+- One engine: `api::view::template_engine::render`. Single-pass byte scan,
   longest-key-first, UTF-8 aware. Benchmarks (`cargo bench`) show ~5× speedup
-  vs the chained-`.replace()` it replaced.
+  vs chained-`.replace()`.
 - Page renderers compose: `build_head(...)` → page body → `BASE_HTML_FOOT`.
-- The duplicated article card (4 call-sites previously) lives in
-  `view::components::render_card` / `render_card_grid`.
+- The article card (4 call-sites previously) lives in
+  `view::components::render_card_grid`.
+
+### Configuration
+
+- `Config::from_env()` reads env vars with defaults.
+- `Config::validate()` runs at startup before any I/O — surfaces missing
+  content dirs, malformed `base_url`, empty host, etc. immediately.
 
 ### Tests
 
-- Unit tests live next to the code they cover (`#[cfg(test)] mod tests`).
+- Unit tests live next to the code they cover.
 - `infra::db` tests use `:memory:` databases.
 - `infra::content_loader` tests read real `data/content/*.json` — they verify
   the schema contract.
-- `domain::generator` tests assert determinism: same path → same output.
+- `domain::generator` tests assert determinism.
+- `domain::services::content_service` tests use an in-process `FakeRepo` —
+  proving the port abstraction pays off.
+- `config::tests` cover validate-rejects-* cases.
 
 ---
 
-## Configuration
+## Configuration vars
 
-All env vars are optional; sensible defaults are baked in.
+All optional; sensible defaults baked in.
 
 | Env var               | Default                    | Notes                          |
 |-----------------------|----------------------------|--------------------------------|
-| `GOBLIN_HOST`         | `0.0.0.0`                  |                                |
+| `GOBLIN_HOST`         | `0.0.0.0`                  | non-empty enforced             |
 | `GOBLIN_PORT`         | `3000`                     |                                |
-| `GOBLIN_CONTENT_DIR`  | `data/content`             | source JSON files              |
-| `GOBLIN_STATIC_DIR`   | `static`                   | served at `/static/*`          |
-| `GOBLIN_BASE_URL`     | `https://goblin.geno.su`   | canonical URLs, sitemap, OG    |
-| `GOBLIN_DB_PATH`      | `goblin_slop.db`           | currently unused — DB is `:memory:` |
+| `GOBLIN_CONTENT_DIR`  | `data/content`             | dir-exists enforced            |
+| `GOBLIN_STATIC_DIR`   | `static`                   | dir-exists enforced            |
+| `GOBLIN_BASE_URL`     | `https://goblin.geno.su`   | http(s):// enforced            |
 | `RUST_LOG`            | `info`                     | tracing-subscriber EnvFilter   |
 
 ---
@@ -198,38 +224,42 @@ cargo build --release
 ```
 
 For changes touching HTTP, also smoke-test a running server against `/`,
-`/api/all`, `/tag/goblin`, and an unknown path.
+`/api/all`, `/tag/goblin`, an unknown path, and `/some_underscored_path`.
 
 ---
 
-## Recent refactor (2026-05-17)
+## Alignment with bulletproof-rust-web
 
-Repo was reshaped from a flat `src/{db, routes, json_content_loader}` layout
-into the `domain` / `infra` / `http` split documented above. Key changes:
+| Guide rule                                         | Implementation                              |
+|----------------------------------------------------|---------------------------------------------|
+| Three layers, deps point inward                    | `domain/` ← `infra/`, `api/`                |
+| Layer names `api`/`domain`/`infra`                 | matches guide                               |
+| Domain has zero framework imports                  | `domain/*` only uses std/serde/rand/anyhow  |
+| AppError + AppResult + IntoResponse                | `src/error.rs`                              |
+| `Internal(#[from] anyhow::Error)` catch-all        | `error.rs`                                  |
+| `thiserror` structured, `anyhow` catch-all         | `error.rs` + repo layer                     |
+| Repository trait (port) in `domain/ports/`         | `ContentRepository`                         |
+| Service generic over port in `domain/services/`    | `ContentService<R>`                         |
+| Repository impl in `infra/repositories/`           | `SqliteContentRepo`                         |
+| Service stored in AppState as concrete type        | `ContentService<SqliteContentRepo>`         |
+| AppState single Clone struct, shared via `Arc`     | `api/state.rs`                              |
+| AppState in its own file                           | `api/state.rs`                              |
+| Composition root in `main.rs`                      | `main.rs`                                   |
+| Eager config validation at startup                 | `Config::validate()`                        |
+| `lib.rs` + `main.rs` split                         | both present                                |
+| Single-crate layout (start here)                   | not a workspace, correct per guide          |
 
-- **`lib.rs` added** so handlers and renderers are reachable from integration
-  tests.
-- **`AppError` + `IntoResponse`** replaces ad-hoc `(StatusCode, String)`
-  tuples and silent `.unwrap_or_default()` swallowing.
-- **`main` returns `anyhow::Result`** — startup failures now surface with
-  context instead of `panic!`.
-- **`tracing`** replaces every `println!` / `eprintln!` (incl. content loader).
-- **`use_new_template_engine` flag removed.** The single-pass engine is
-  validated; the chained-`.replace()` fallback was dead code.
-- **Card markup deduplicated.** The article-card HTML was copy-pasted across
-  home / search / tag / category; it now lives in `view::components`.
-- **`ContentEntry` / `DynamicPage` / `SourceRef`** moved to `domain::content`,
-  decoupling them from rusqlite.
+### Deliberate deviations (with rationale)
 
-What was deliberately **not** changed (kept simple per
-[bulletproof-rust-web]'s "incremental complexity" principle):
-
-- Still rusqlite + `Arc<Mutex<Connection>>`; no async DB, no pool.
-- No repository traits or service generics — the call graph is small enough
-  that direct function calls in `infra::db` are clearer than ports/adapters.
-- No middleware stack (CORS, timeout, rate limit). Add when there's a real
-  reason, not preemptively.
-- No CLAUDE.md, no validator crate, no DTO/entity split — the schema is
-  read-mostly and there are no user-supplied bodies to validate.
-
-[bulletproof-rust-web]: https://gruberb.github.io/bulletproof-rust-web/
+- **`Arc<Mutex<Connection>>` in repo.** Guide prefers no `Mutex<T>` in
+  AppState. Our `Mutex` is *inside* the repo (an infra detail), not exposed
+  to handlers, and is required because rusqlite is sync. Migrating to
+  `deadpool-sqlite` would remove the lock entirely — a planned-but-not-done
+  follow-up.
+- **No `api/dtos/`.** The site has no client-supplied bodies (all GET), and
+  `ContentEntry` is structurally identical to the JSON response shape. The
+  guide explicitly permits sharing types when "structurally identical with
+  identical invariants."
+- **No `secrecy` / `SecretString`.** No secrets in this config.
+- **No middleware stack (CORS / timeout / rate limit).** Not warranted for
+  a read-only public content site; add when there's a concrete reason.

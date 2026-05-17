@@ -2,10 +2,9 @@ use axum::extract::{Query, State};
 use axum::response::Html;
 use serde::Deserialize;
 
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::http::view::{render_card_grid, render_static_page};
-use crate::infra::db;
+use crate::api::AppState;
+use crate::api::view::{render_card_grid, render_static_page};
+use crate::error::AppResult;
 
 const PER_PAGE: u64 = 12;
 
@@ -18,11 +17,8 @@ pub async fn home_page(
     State(state): State<AppState>,
     Query(params): Query<HomeQuery>,
 ) -> AppResult<Html<String>> {
-    let conn = state.db.lock().map_err(|_| poisoned())?;
     let current_page = params.page.unwrap_or(1).max(1);
-
-    let entries = db::get_content_paginated(&conn, current_page, PER_PAGE)?;
-    let total = db::count_all_content(&conn)?;
+    let (entries, total) = state.content.paginated(current_page, PER_PAGE)?;
     let total_pages = total.div_ceil(PER_PAGE);
 
     let cards_html = render_card_grid(&entries, true);
@@ -89,8 +85,4 @@ pub async fn home_page(
         "/",
         &state.base_url,
     )))
-}
-
-fn poisoned() -> AppError {
-    AppError::Internal(anyhow::anyhow!("db mutex poisoned"))
 }

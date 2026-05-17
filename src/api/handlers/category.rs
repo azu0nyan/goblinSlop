@@ -1,20 +1,15 @@
 use axum::extract::{Path, State};
 use axum::response::Html;
 
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::http::view::{render_card_grid, render_static_page};
-use crate::infra::db;
+use crate::api::AppState;
+use crate::api::view::{render_card_grid, render_static_page};
+use crate::error::AppResult;
 
 pub async fn category_page(
     State(state): State<AppState>,
     Path(category): Path<String>,
 ) -> AppResult<Html<String>> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal(anyhow::anyhow!("db mutex poisoned")))?;
-    let entries = db::get_content_by_category(&conn, &category)?;
+    let entries = state.content.by_category(&category)?;
     let count = entries.len();
 
     let mut body = format!("<h2>Category: <span class='category-link'>{category}</span></h2>");

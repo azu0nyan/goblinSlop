@@ -1,21 +1,16 @@
 use axum::Json;
 use axum::extract::{Path, State};
 
+use crate::api::AppState;
+use crate::api::response::ApiResponse;
 use crate::domain::ContentEntry;
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::http::response::ApiResponse;
-use crate::infra::db;
+use crate::error::AppResult;
 
 pub async fn api_content(
     State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> AppResult<Json<ApiResponse<Option<ContentEntry>>>> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal(anyhow::anyhow!("db mutex poisoned")))?;
-    let entry = db::get_content_by_slug(&conn, &slug)?;
+    let entry = state.content.find_by_slug(&slug)?;
     Ok(Json(ApiResponse {
         success: entry.is_some(),
         data: entry,

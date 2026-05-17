@@ -2,10 +2,9 @@ use axum::extract::{Query, State};
 use axum::response::Html;
 use serde::Deserialize;
 
-use crate::error::{AppError, AppResult};
-use crate::http::AppState;
-use crate::http::view::{render_card_grid, render_static_page};
-use crate::infra::db;
+use crate::api::AppState;
+use crate::api::view::{render_card_grid, render_static_page};
+use crate::error::AppResult;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -16,13 +15,8 @@ pub async fn search_page(
     State(state): State<AppState>,
     Query(params): Query<SearchQuery>,
 ) -> AppResult<Html<String>> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal(anyhow::anyhow!("db mutex poisoned")))?;
-
     let body = if let Some(query) = &params.q {
-        let results = db::search_content(&conn, query)?;
+        let results = state.content.search(query)?;
         let header = format!(
             "<p>Search results for <strong>{query}</strong>: {} found.</p>",
             results.len()
