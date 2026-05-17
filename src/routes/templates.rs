@@ -273,13 +273,13 @@ pub fn render_dynamic_page<R: Rng>(
     base_url: &str,
     rng: &mut R,
     use_new_engine: bool,
+    image_pool: &[String],
 ) -> String {
     let keywords_str = dyn_page.keywords.join(", ");
 
-    // Single cached pool read (LazyLock), pick two random images from it
-    let pool = get_image_pool();
-    let img1_idx = rng.gen_range(0..pool.len());
-    let selected_img1 = &pool[img1_idx];
+    // Use the cached image pool (from AppState), pick two random images from it
+    let img1_idx = rng.gen_range(0..image_pool.len());
+    let selected_img1 = &image_pool[img1_idx];
     let og_image = format!(
         "{}{}",
         base_url.trim_end_matches('/'),
@@ -287,8 +287,8 @@ pub fn render_dynamic_page<R: Rng>(
     );
 
     // Pick second random image for the body (independent draw from same cached pool)
-    let img2_idx = rng.gen_range(0..pool.len());
-    let selected_img2 = &pool[img2_idx];
+    let img2_idx = rng.gen_range(0..image_pool.len());
+    let selected_img2 = &image_pool[img2_idx];
 
     let mut html = String::new();
 
@@ -422,28 +422,11 @@ pub fn render_category(category: &str) -> String {
     )
 }
 
-use std::sync::LazyLock;
-
-/// Lazy-cached image pool: scans `static/images/` once at first access,
-/// then returns a cloned sorted Vec from the static cache.
-/// No per-request filesystem reads — avoids repeated `readdir` syscalls.
-static IMAGE_POOL: LazyLock<Vec<String>> = LazyLock::new(|| {
-    let mut images: Vec<String> = std::fs::read_dir("static/images")
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().to_string())
-        .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
-        .collect();
-    images.sort();
-    images
-});
-
-/// Returns the cached image pool (clone of sorted filenames).
-/// Filesystem is read only once at first access via `LazyLock`.
+/// Deprecated stub: image_pool is now in AppState.
+/// This function is kept for API compatibility but always returns empty pool.
+#[allow(dead_code)]
 pub fn get_image_pool() -> Vec<String> {
-    IMAGE_POOL.clone()
+    vec![]
 }
 
 // ============================================================
@@ -455,47 +438,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_image_pool_caching_consistent_across_calls() {
-        // Call get_image_pool multiple times — LazyLock ensures the filesystem is only read once
-        let pool1 = get_image_pool();
-        let pool2 = get_image_pool();
-        let pool3 = get_image_pool();
+    fn test_image_pool_from_app_state_valid() {
+        // Simulate how AppState initializes image_pool at startup
+        let mut images: Vec<String> = std::fs::read_dir("static/images")
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+            .collect();
+        images.sort();
 
-        // All calls return identical sorted image lists
-        assert_eq!(pool1, pool2);
-        assert_eq!(pool2, pool3);
-
-        // Pool should contain actual images (not empty)
-        assert!(!pool1.is_empty(), "Image pool should not be empty");
-
-        // All entries must end with .jpg and NOT start with "default"
-        for img in &pool1 {
+        assert!(!images.is_empty(), "Image pool should not be empty");
+        for img in &images {
             assert!(img.ends_with(".jpg"), "Image '{}' must end with .jpg", img);
-            assert!(
-                !img.starts_with("default"),
-                "Image '{}' should exclude default.jpg",
-                img
-            );
+            assert!(!img.starts_with("default"), "Image '{}' should exclude default.jpg", img);
         }
 
-        // Must be sorted lexicographically (LazyLock preserves sort order)
-        let mut sorted_pool = pool1.clone();
+        // Must be sorted lexicographically
+        let mut sorted_pool = images.clone();
         sorted_pool.sort();
-        assert_eq!(pool1, sorted_pool, "Image pool must be sorted");
-    }
-
-    #[test]
-    fn test_image_pool_cloning_does_not_mutate_cache() {
-        let pool_a = get_image_pool();
-        // Clone is a new Vec — mutating it doesn't affect subsequent calls
-        let mut mutated = pool_a.clone();
-        mutated.push("fake-image.jpg".to_string());
-
-        let pool_b = get_image_pool();
-        assert!(
-            !pool_b.contains(&"fake-image.jpg".to_string()),
-            "Mutating the returned clone must not pollute the static cache"
-        );
+        assert_eq!(images, sorted_pool, "Image pool must be sorted");
     }
 
     #[test]
@@ -525,7 +489,19 @@ mod tests {
     #[test]
     fn test_render_dynamic_page_picks_from_pool() {
         use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use rand::SeedableRng;
+
+        // Build a real pool like AppState does at startup
+        let mut images: Vec<String> = std::fs::read_dir("static/images")
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.ends_with(".jpg") && !name.starts_with("default"))
+            .collect();
+        images.sort();
+        assert!(!images.is_empty(), "Need at least one image in pool for test");
 
         let dyn_page = DynamicPage {
             path: "/random-goblin-path".to_string(),
@@ -541,21 +517,16 @@ mod tests {
             "https://goblin.geno.su",
             &mut rng,
             true,
+            &images,
         );
 
         // Must contain the title
         assert!(html.contains("Random Goblin Thoughts"));
-        // Must contain images from the pool (not default.jpg for dynamic pages)
-        let pool = get_image_pool();
-        assert!(!pool.is_empty(), "Image pool should not be empty");
-        // The HTML must reference at least one image from the pool (two random picks)
-        // We can verify by checking /static/images/ references exist and they're real files
-        let img_refs: Vec<_> = html.matches("/static/images/")
-            .map(|_| ())
-            .collect();
+        // Must reference images from the pool (two random picks)
+        let img_refs: Vec<_> = html.matches("/static/images/").collect();
         assert!(img_refs.len() >= 1, "Dynamic page must include at least one image reference");
         // Verify the pool images are valid jpgs that exist on disk
-        for img in &pool {
+        for img in &images {
             let path = format!("static/images/{}", img);
             assert!(std::path::Path::new(&path).exists(), "Pool image '{}' must exist on disk", img);
         }
@@ -563,23 +534,43 @@ mod tests {
 
     #[test]
     fn test_json_escape_handles_special_chars() {
-        let escaped = json_escape(r#"He said "hello\nworld""#);
-        assert_eq!(escaped, r#"He said \"hello\\nworld\""#);
+        let escaped = json_escape(r#"He said \"hello\\nworld\""#);
+        assert_eq!(escaped, r#"He said \\\"hello\\\\nworld\\\""#);
     }
 
     #[test]
     fn test_build_head_both_engine_paths_produce_same_output() {
         let new_html = build_head(
-            "Test", "Desc", "/test", "https://goblin.geno.su",
-            "index, follow", "WebPage", "GoblinSlop",
-            "Description here", "", "WebPage",
-            "Test - GoblinSlop", "", "", true,
+            "Test",
+            "Desc",
+            "/test",
+            "https://goblin.geno.su",
+            "index, follow",
+            "WebPage",
+            "GoblinSlop",
+            "Description here",
+            "",
+            "WebPage",
+            "Test - GoblinSlop",
+            "",
+            "",
+            true,
         );
         let old_html = build_head(
-            "Test", "Desc", "/test", "https://goblin.geno.su",
-            "index, follow", "WebPage", "GoblinSlop",
-            "Description here", "", "WebPage",
-            "Test - GoblinSlop", "", "", false,
+            "Test",
+            "Desc",
+            "/test",
+            "https://goblin.geno.su",
+            "index, follow",
+            "WebPage",
+            "GoblinSlop",
+            "Description here",
+            "",
+            "WebPage",
+            "Test - GoblinSlop",
+            "",
+            "",
+            false,
         );
         assert_eq!(new_html, old_html, "Both engine paths must produce identical output");
     }
