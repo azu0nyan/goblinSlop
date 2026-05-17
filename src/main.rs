@@ -6,9 +6,6 @@ mod db;
 mod json_content_loader;
 mod routes;
 
-#[cfg(test)]
-mod benchmarks;
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
