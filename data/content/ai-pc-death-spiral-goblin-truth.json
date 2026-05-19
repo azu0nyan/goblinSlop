@@ -20,8 +20,17 @@
   ],
   "image": "ai-goblin-schizo-miku.jpg",
   "sources": [
-    "https://www.xda-developers.com/microsoft-is-quietly-walking-back-copilot-but-the-googlebook-is-proof-that-google-didnt-get-the-memo/",
-    "https://www.windowslatest.com/2026/02/20/microsoft-says-2026-is-the-moment-for-ai-pcs-touts-windows-11-recall-copilot-and-the-highest-standard-of-security/",
-    "https://tech.yahoo.com/ai/copilot/articles/mozilla-blasts-microsoft-copilot-rollback-164357747.html"
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/microsoft-is-quietly-walking-back-copilot-but-the-googlebook-is-proof-that-google-didnt-get-the-memo/"
+    },
+    {
+      "name": "Windows Latest",
+      "url": "https://www.windowslatest.com/2026/02/20/microsoft-says-2026-is-the-moment-for-ai-pcs-touts-windows-11-recall-copilot-and-the-highest-standard-of-security/"
+    },
+    {
+      "name": "Yahoo Tech",
+      "url": "https://tech.yahoo.com/ai/copilot/articles/mozilla-blasts-microsoft-copilot-rollback-164357747.html"
+    }
   ]
 }

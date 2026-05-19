@@ -18,8 +18,14 @@
     "goblins-pop-culture-tropes"
   ],
   "sources": [
-    "https://www.scmp.com/news/hong-kong/health-environment/article/3354141/visitor-quotas-needed-protect-country-parks-4-trails-challenge-founder-says",
-    "https://www.verkkokauppa.com/fi/product/966347/AMD-Ryzen-7-9800X3D-prosessori-AM5-kantaan"
+    {
+      "name": "SCMP Hong Kong",
+      "url": "https://www.scmp.com/news/hong-kong/health-environment/article/3354141/visitor-quotas-needed-protect-country-parks-4-trails-challenge-founder-says"
+    },
+    {
+      "name": "Verkkokauppa.fi",
+      "url": "https://www.verkkokauppa.com/fi/product/966347/AMD-Ryzen-7-9800X3D-prosessori-AM5-kantaan"
+    }
   ],
   "image": "goblin-local-ai-rebellion.jpg"
 }
