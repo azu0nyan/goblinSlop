@@ -19,8 +19,17 @@
   ],
   "image": "altman-miku-goblin-king.jpg",
   "sources": [
-    "https://www.youtube.com/watch?v=rcd_SQZDlnk",
-    "https://www.animenewsnetwork.com/news/2026-05-19/nintendo-announces-new-photo-based-smartphone-game-pictonico/.237526",
-    "https://www.ign.com/articles/what-to-expect-from-nintendo-in-2026"
+    {
+      "name": "youtube.com",
+      "url": "https://www.youtube.com/watch?v=rcd_SQZDlnk"
+    },
+    {
+      "name": "animenewsnetwork.com",
+      "url": "https://www.animenewsnetwork.com/news/2026-05-19/nintendo-announces-new-photo-based-smartphone-game-pictonico/.237526"
+    },
+    {
+      "name": "ign.com",
+      "url": "https://www.ign.com/articles/what-to-expect-from-nintendo-in-2026"
+    }
   ]
 }

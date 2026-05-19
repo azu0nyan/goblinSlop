@@ -19,9 +19,18 @@
     "goblin-mode-2026-global-chaos-index"
   ],
   "sources": [
-    "https://www.tomshardware.com/maker-stem/robot-kits/japan-cant-make-robot-wolves-fast-enough-to-counter-the-rise-in-bear-attacks-that-have-killed-13-humans-this-year-usd4-000-animatronic-monster-wolf-features-intense-leds-and-makes-loud-noises",
-    "https://www.the-independent.com/asia/japan/japan-robot-wolf-bear-attacks-ohta-seiki-b2975670.html",
-    "https://www.usatoday.com/story/news/world/2026/05/13/super-monster-wolf-robots-deployed-amid-record-bear-attacks-japan/90067016007/"
+    {
+      "name": "tomshardware.com",
+      "url": "https://www.tomshardware.com/maker-stem/robot-kits/japan-cant-make-robot-wolves-fast-enough-to-counter-the-rise-in-bear-attacks-that-have-killed-13-humans-this-year-usd4-000-animatronic-monster-wolf-features-intense-leds-and-makes-loud-noises"
+    },
+    {
+      "name": "the-independent.com",
+      "url": "https://www.the-independent.com/asia/japan/japan-robot-wolf-bear-attacks-ohta-seiki-b2975670.html"
+    },
+    {
+      "name": "usatoday.com",
+      "url": "https://www.usatoday.com/story/news/world/2026/05/13/super-monster-wolf-robots-deployed-amid-record-bear-attacks-japan/90067016007/"
+    }
   ],
   "image": "monster-wolf-bear-japan.jpg"
 }
