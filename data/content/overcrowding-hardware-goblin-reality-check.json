@@ -13,9 +13,8 @@
   "is_dynamic": false,
   "date_added": "2026-05-19",
   "references": [
-    "https://www.scmp.com/news/hong-kong/health-environment/article/3354141/visitor-quotas-needed-protect-country-parks-4-trails-challenge-founder-says",
-    "https://www.verkkokauppa.com/fi/product/966347/AMD-Ryzen-7-9800X3D-prosessori-AM5-kantaan",
-    "https://api.open-meteo.com/v1/forecast?latitude=59.93,65.73,19.89&longitude=30.32,31.45,18.93&current_weather=true"
+    "https://www.scmp.com/rss-feed",
+    "https://www.verkkokauppa.com/"
   ],
   "sources": [
     "https://www.scmp.com/news/hong-kong/health-environment/article/3354141/visitor-quotas-needed-protect-country-parks-4-trails-challenge-founder-says",
