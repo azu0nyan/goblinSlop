@@ -13,13 +13,19 @@
   "is_dynamic": false,
   "date_added": "2026-05-19",
   "references": [
-    "https://www.youtube.com/feed/subscriptions",
-    "https://www.animenewsnetwork.com/news/"
+    "goblin-mode-2026-global-chaos-index",
+    "miku-synthetic-analysis-may-2026.json",
+    "geopolitical-blaze"
   ],
   "image": "altman-miku-goblin-king.jpg",
   "sources": [
-    "https://www.youtube.com/watch?v=rcd_SQZDlnk",
-    "https://www.animenewsnetwork.com/news/2026-05-19/nintendo-announces-new-photo-based-smartphone-game-pictonico/.237526",
-    "https://www.ign.com/articles/what-to-expect-from-nintendo-in-2026"
+    {
+      "name": "YouTube Official",
+      "url": "https://www.youtube.com/feed/subscriptions"
+    },
+    {
+      "name": "Anime News Network",
+      "url": "https://www.animenewsnetwork.com/news/"
+    }
   ]
 }
