@@ -1,4 +1,5 @@
 pub mod content;
+pub mod content_schema;
 pub mod generator;
 pub mod ports;
 pub mod references;

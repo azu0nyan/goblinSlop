@@ -4,46 +4,11 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 use pulldown_cmark::{Parser, html};
 use rusqlite::Connection;
-use serde::Deserialize;
 use tracing::{info, warn};
 
-use crate::domain::{ContentEntry, SourceRef};
+use crate::domain::ContentEntry;
+use crate::domain::content_schema::JsonContentEntry;
 use crate::infra::db::insert_content;
-
-/// Unified content entry loaded from individual JSON files in `data/content/`.
-#[derive(Debug, Deserialize)]
-struct JsonContentEntry {
-    pub id: String,
-    pub title: String,
-    pub slug: String,
-    pub body_markdown: String,
-    #[serde(default = "default_category")]
-    pub category: String,
-    #[serde(default = "default_tags")]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub references: Vec<String>,
-    #[serde(default)]
-    pub sources: Vec<SourceRef>,
-    #[serde(default)]
-    pub is_dynamic: bool,
-    #[serde(default = "default_date_added")]
-    pub date_added: String,
-    #[serde(default)]
-    pub image: Option<String>,
-}
-
-fn default_category() -> String {
-    "general".to_string()
-}
-
-fn default_tags() -> Vec<String> {
-    vec!["goblin".to_string()]
-}
-
-fn default_date_added() -> String {
-    "1970-01-01T00:00:00Z".to_string()
-}
 
 /// Load every `.json` file from `content_dir` into the supplied connection.
 pub fn load_all_content_into_conn(conn: &Connection, content_dir: &str) -> Result<()> {

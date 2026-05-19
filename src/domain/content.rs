@@ -1,10 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SourceRef {
-    pub name: String,
-    pub url: String,
-}
+pub use crate::domain::content_schema::SourceRef;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ContentEntry {
