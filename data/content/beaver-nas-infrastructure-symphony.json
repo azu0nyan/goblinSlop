@@ -1,0 +1,41 @@
+{
+  "id": "beaver-nas-infrastructure-symphony",
+  "title": "The Beaver's Dam: How NAS and Home Labs Are Reshaping Personal Infrastructure",
+  "slug": "beaver-nas-infrastructure-symphony",
+  "image": "goblin-engine-wars.jpg",
+  "body_markdown": "Listen closely to the sound of a well-built home lab. It's not the whir of servers or the blink of LED indicators — it's the steady, rhythmic gnawing of beavers building their dam, one piece at a time. Each NAS drive is a stick. Each backup script is mud. The structure grows organically, silently, inevitably.\n\nXDA reporters describe giving Home Assistant access to their NAS and discovering it had become the dashboard their smart home was missing. Seven things people stopped paying for after getting a NAS — streaming services duplicated by local media servers, cloud storage replaced by private cloud, SaaS subscriptions folded into self-hosted alternatives.\n\nThe full-size PC as first home lab isn't a compromise; it's a philosophy. Rather than fragmenting infrastructure across Raspberry Pis and single-board computers, the full-size approach treats the home lab like a real data center — just smaller. Storage scales with SATA ports. Compute scales with PCIe slots. The beaver doesn't build its dam from twigs when logs are available.\n\nMeanwhile, Linux is quietly becoming the better choice for Windows users who just browse the web. The desktop experience has matured past the hacky phase into something genuinely usable — and a well-configured home lab running Linux becomes the foundation that makes this transition seamless. Your daily driver gets the stability of server-grade software; your NAS handles the heavy lifting.\n\nBeavers don't ask permission to build their dams. They simply start gnawing, and the river adapts to their architecture. The modern homesteader does the same with servers, storage arrays, and self-hosted services — building infrastructure that serves them for years without subscription renewals or vendor lock-in.\n\nThe goblin understands: every beaver is a sysadmin. Every dam is a data center. And the river? The river is the internet, slowly learning to flow through your pipes.",
+  "category": "lore",
+  "tags": [
+    "nas",
+    "home-lab",
+    "beavers",
+    "self-hosting",
+    "linux",
+    "infrastructure"
+  ],
+  "references": [
+    "goblin-lore",
+    "status-linux-golden-age",
+    "silicon-necropolis-cathedral"
+  ],
+  "sources": [
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/i-gave-home-assistant-access-to-my-nas/"
+    },
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/7-things-i-stopped-paying-for-after-getting-a-nas/"
+    },
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/your-first-home-lab-should-be-with-a-full-size-pc-and-heres-why/"
+    },
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/linux-becoming-better-choice-windows-users-who-just-use-web-browser/"
+    }
+  ],
+  "is_dynamic": false,
+  "date_added": "2026-06-02T15:50:25Z"
+}
