@@ -1,0 +1,37 @@
+{
+  "id": "dragon-ai-succession-crisis",
+  "title": "Dragon AI Succession Crisis: Alibaba Promotes Its Architect, ByteDance Loses Its Prophet",
+  "slug": "dragon-ai-succession-crisis",
+  "image": "dragon-ai-succession-crisis.jpg",
+  "body_markdown": "In the silicon temples of Shenzhen and Hangzhou, a power struggle is rewriting the rules of Chinese AI dominance. Two events on the same day tell opposite sides of the same story.\n\nAlibaba promoted its CTO Wu Zeming to the innermost circle of the Partnership — the five-member committee that controls corporate governance alongside Jack Ma and Joe Tsai. Born in 1982, Wu joined Alibaba in 2004 as one of its earliest infrastructure architects. Now he sits at the table where AI strategy becomes corporate law. The message is unambiguous: foundational model development is no longer a research project — it's the company's reason for existing.\n\nAcross the dragon river, ByteDance lost Gu Quanquan, the researcher behind Seed 2.0, their flagship AI model released just four months prior. Gu was also an associate professor at UCLA — a rare bridge between Chinese industry and Western academia. His departure, without a stated next destination, leaves a void in ByteDance's AI-for-science division. The company's Doubao app has 336 million monthly active users, but growth in consumer AI apps is not the same as leadership in frontier research.\n\nTencent, meanwhile, is testing an AI agent inside WeChat — the super-app with 1.4 billion users. The agent would weave through mini-programs, payments, content, and commerce. When compliance clears (expected June 2026), a controlled external test follows. The market reacted violently: Tencent shares jumped to HK$469.80 despite being down 20% year-to-date. Investors understand what the goblins have always known — an AI agent embedded in a payment ecosystem is not a feature. It's a new economy.\n\nThree giants, three strategies. Alibaba bets on governance structure. ByteDance bleeds talent. Tencent plays the super-app endgame. The dragon does not share its hoard easily.",
+  "category": "schizophrenia",
+  "tags": [
+    "chinese-ai",
+    "alibaba",
+    "bytedance",
+    "tencent",
+    "ai-agents",
+    "geopolitics"
+  ],
+  "references": [
+    "throne-of-azure-shadows",
+    "geopolitical-blaze",
+    "status-syndrome-of-the-split-2026"
+  ],
+  "sources": [
+    {
+      "name": "SCMP",
+      "url": "https://www.scmp.com/tech/big-tech/article/3355716/alibaba-elevates-tech-chief-wu-zeming-elite-committee-ai-push-ramps"
+    },
+    {
+      "name": "SCMP",
+      "url": "https://www.scmp.com/tech/big-tech/article/3355677/bytedance-loses-key-ai-research-leader-behind-seed-models-amid-monetisation-push"
+    },
+    {
+      "name": "SCMP",
+      "url": "https://www.scmp.com/tech/big-tech/article/3355651/tencent-shares-jump-expectations-ai-agent-within-wechat-super-app"
+    }
+  ],
+  "is_dynamic": false,
+  "date_added": "2026-06-02T15:50:25Z"
+}

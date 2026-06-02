@@ -1,0 +1,37 @@
+{
+  "id": "agent-infrastructure-war-2026",
+  "title": "The Agent Infrastructure War: When Your Coding Tools Start Billing You Per Thought",
+  "slug": "agent-infrastructure-war-2026",
+  "image": "agent-infrastructure-war-2026.jpg",
+  "body_markdown": "You feel it in the silence between keystrokes. The IDE that used to be your forge has become a metered utility — every autocomplete, every agent suggestion, every autonomous commit now tracked in some administrator's dashboard like water usage in a drought.\n\nGitHub rolled out AI Credits on June 1st, 2026, and the shift is visceral. Copilot is no longer a flat-rate subscription; it's a consumption platform with budget caps, overage alerts, and model tiering that forces enterprises to choose between GPT-5.3-Codex and cheaper alternatives for routine tasks. The Cloud Agent layer routes simple jobs to fast, cheap models and reserves the expensive ones for complex reasoning — an AI traffic cop deciding which thoughts are worth paying for.\n\nMeanwhile, XDA reporters describe the \"slow motion\" experience of returning to vanilla VS Code after a week of agentic coding. Your brain has adapted to three-step-ahead architecture review while your fingers still type line-by-line. The cognitive dissonance is real — you've been promoted from typist to supervisor, and the demotion feels like handcuffs.\n\nClaude Code enters this arena with a different philosophy: not speed, but transparency. Every generated script must be inspectable, every automation dry-run before execution. It frames AI not as an autonomous worker but as a bounded collaborator — trust still has to be earned line by line. In an ecosystem where agents are becoming the default development paradigm, this sober approach may be the most radical position of all.\n\nThe goblin sees what the enterprise dashboard misses: when your tools bill you per thought, thinking itself becomes a commodity. And commodities have margins.",
+  "category": "schizophrenia",
+  "tags": [
+    "ai-agents",
+    "copilot",
+    "claude-code",
+    "enterprise-ai",
+    "coding-culture",
+    "infrastructure"
+  ],
+  "references": [
+    "ai-agent-apocalypse",
+    "status-syndrome-of-the-split-2026",
+    "throne-of-azure-shadows"
+  ],
+  "sources": [
+    {
+      "name": "GitHub Blog",
+      "url": "https://github.blog/changelog/2026-06-01/copilot-billing/"
+    },
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/tried-back-standard-vs-code-after-agentic-coding-felt-slow-motion/"
+    },
+    {
+      "name": "XDA Developers",
+      "url": "https://www.xda-developers.com/claude-code-helped-maintenance-scripts-inspect/"
+    }
+  ],
+  "is_dynamic": false,
+  "date_added": "2026-06-02T15:50:25Z"
+}

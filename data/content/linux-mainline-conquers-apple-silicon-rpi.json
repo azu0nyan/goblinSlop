@@ -1,0 +1,37 @@
+{
+  "id": "linux-mainline-conquers-apple-silicon-rpi",
+  "title": "Mainline Linux Declares Victory: Apple Silicon Shuts Down Cleanly, Raspberry Pi Boots Pure",
+  "slug": "linux-mainline-conquers-apple-silicon-rpi",
+  "image": "linux-mainline-conquers-apple-silicon-rpi.jpg",
+  "body_markdown": "Linux 6.17 arrived like a general returning from three fronts simultaneously, and every conquered territory bears the same banner: mainline kernel support.\n\nApple Silicon MacBooks can now shutdown and reboot on unmodified mainline kernel — the SMC driver finally enabled. No modified distro kernels, no hacky workarounds. The M1 and M2 machines that Apple thought would remain locked in their garden for eternity are now citizens of the open-source realm. This is not just a driver update; it's a territorial annexation.\n\nRaspberry Pi 5 achieves true mainline Linux boot through RP1 PCI patches. No distro modifications required. The single-board computer that democratized computing has now completed its journey from hackable project to first-class Linux platform.\n\nIntel Panther Lake gets full stable driver support with Xe3 graphics ahead of consumer device shipping — positioning Linux as the most broadly-supported OS across diverse hardware ecosystems. AMDGPU driver surpasses six million lines of code in Linux 7.0, making it the largest driver in mainline kernel history. Valve's Timur Kristof leads improvements for aging GCN GPUs, switching older cards to RADV Vulkan by default.\n\nSR-IOV enabled on Intel Arc Pro GPUs improves VM performance and isolation — enterprise virtualization gets a boost from open-source development. SMP support made unconditional, AMD hardware feedback reporting tool added, extensive power management optimizations completed.\n\nThe goblin sees the pattern: every proprietary platform that Linux touches becomes more integrated, more supported, more essential. Apple's walled garden develops cracks. Raspberry Pi's community project achieves mainline status. The desktop siege continues, and the walls are getting thinner with every kernel release.",
+  "category": "status",
+  "tags": [
+    "linux",
+    "kernel",
+    "apple-silicon",
+    "raspberry-pi",
+    "amd-gpu",
+    "intel-panther-lake"
+  ],
+  "references": [
+    "status-linux-golden-age",
+    "silicon-necropolis-cathedral",
+    "linux-desktop-siege"
+  ],
+  "sources": [
+    {
+      "name": "Phoronix",
+      "url": "https://www.phoronix.com/news/Linux-6.17-Released"
+    },
+    {
+      "name": "Phoronix",
+      "url": "https://www.phoronix.com/news/AMD-GPU-Driver-6M-Lines"
+    },
+    {
+      "name": "Phoronix",
+      "url": "https://www.phoronix.com/news/Old-AMD-GPU-Improvements-2026"
+    }
+  ],
+  "is_dynamic": false,
+  "date_added": "2026-06-02T15:50:25Z"
+}
